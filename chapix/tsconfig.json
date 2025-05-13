@@ -18,8 +18,16 @@
         "name": "next"
       }
     ],
-    "paths": {
-      "@/*": ["./*"]
+      "baseUrl": "./app",
+      "paths": {
+      "@/*": ["*"],
+      "@utils/*": ["utils/*"],
+      "@lib/*": ["lib/*"],
+      "@components/*": ["components/*"],
+      "@services/*": ["services/*"],
+      "@types/*": ["types/*"],
+      "@prisma": ["generated/prisma/client"],
+      "@prisma/*": ["generated/prisma/client/*"]
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
