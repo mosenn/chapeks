@@ -2,7 +2,8 @@
 import Image from "next/image";
 import React, { useEffect, useRef, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
-
+// import html2canvas from "html2canvas";
+import html2canvas from 'html2canvas'
 type ImageItemType = {
   id: string;
   file: File;
@@ -29,26 +30,116 @@ const Editor = () => {
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showSettingId, setShowSettingId] = useState<string | null>(null);
+  const [showTextInput, setShowTextInput] = useState(false);
 
+  type ZIndexMap = Record<string, number>;
+  const [zIndexes, setZIndexes] = useState<ZIndexMap>({});
+  const zCounter = useRef(1);
+  const canvasRef = useRef<HTMLDivElement>(null);
+
+  const bringToFront = (id: string) => {
+    setZIndexes((prev) => ({
+      ...prev,
+      [id]: zCounter.current++,
+    }));
+  };
   const offset = useRef({ x: 0, y: 0 });
 
   const [newText, setNewText] = useState("");
+  const selectedImage = images.find((img) => img.id === selectedId);
 
+  //   const handleAddImages = (files: FileList | null) => {
+  //     if (!files) return;
+  //     const newImages: ImageItemType[] = Array.from(files).map((file) => {
+  //       const id = uuidv4();
+  //       const preview = URL.createObjectURL(file);
+  //       return {
+  //         id,
+  //         file,
+  //         preview,
+  //         position: { x: 100, y: 100 },
+  //         size: 100,
+  //         rotate: "0",
+  //       };
+  //     });
+  //     setImages((prev) => [...prev, ...newImages]);
+  //   };
+
+  // const handleAddImages = (files: FileList | null) => {
+  //   if (!files) return;
+
+  //   Array.from(files).forEach((file) => {
+  //     const reader = new FileReader();
+
+  //     reader.onload = (e) => {
+  //       const preview = e.target?.result as string;
+  //       const imgElement = new window.Image();
+
+  //       imgElement.onload = () => {
+  //         const id = uuidv4();
+
+  //         const newImage: ImageItemType = {
+  //           id,
+  //           file,
+  //           preview,
+  //           position: { x: 100, y: 100 },
+  //           size: imgElement.width, // اندازه واقعی تصویر
+  //           rotate: "0",
+  //         };
+
+  //         setImages((prev) => [...prev, newImage]);
+  //       };
+
+  //       imgElement.src = preview;
+  //     };
+
+  //     reader.readAsDataURL(file);
+  //   });
+  // };
+  const handleExport = async () => {
+    if (!canvasRef.current) return;
+
+    const canvas = await html2canvas(canvasRef.current, {
+      backgroundColor: null, // شفاف بودن پس‌زمینه
+      useCORS: true, // برای بارگذاری تصاویر از URLهای blob
+    });
+
+    const dataUrl = canvas.toDataURL("image/png");
+
+    // دانلود عکس
+    const link = document.createElement("a");
+    link.href = dataUrl;
+    link.download = "output.png";
+    link.click();
+  };
   const handleAddImages = (files: FileList | null) => {
     if (!files) return;
-    const newImages: ImageItemType[] = Array.from(files).map((file) => {
-      const id = uuidv4();
-      const preview = URL.createObjectURL(file);
-      return {
-        id,
-        file,
-        preview,
-        position: { x: 100, y: 100 },
-        size: 150,
-        rotate: "0",
+
+    Array.from(files).forEach((file) => {
+      const reader = new FileReader();
+
+      reader.onload = (e) => {
+        const preview = e.target?.result as string;
+        const img = new window.Image();
+
+        img.onload = () => {
+          const id = uuidv4();
+          const newImage: ImageItemType = {
+            id,
+            file,
+            preview,
+            position: { x: 100, y: 100 },
+            size: img.width, // واقعی‌ترین عرض تصویر
+            rotate: "0",
+          };
+          setImages((prev) => [...prev, newImage]);
+        };
+
+        img.src = preview;
       };
+
+      reader.readAsDataURL(file);
     });
-    setImages((prev) => [...prev, ...newImages]);
   };
 
   const handleAddText = () => {
@@ -71,8 +162,19 @@ const Editor = () => {
     type: "image" | "text",
     e: React.MouseEvent
   ) => {
+    // جلوگیری از شروع درگ روی input, slider و ...
+    const target = e.target as HTMLElement;
+    if (
+      ["INPUT", "TEXTAREA", "SELECT", "BUTTON", "LABEL"].includes(
+        target.tagName
+      )
+    ) {
+      return;
+    }
+
     setDraggingId(id);
     setDragType(type);
+
     const item =
       type === "image"
         ? images.find((img) => img.id === id)
@@ -159,49 +261,87 @@ const Editor = () => {
 
   return (
     <div className="p-4 space-y-4">
-      <div className="flex items-center gap-2">
-        <input
-          type="text"
-          value={newText}
-          onChange={(e) => setNewText(e.target.value)}
-          placeholder="متن را وارد کنید"
-          className="border px-2 py-1 rounded"
-        />
+      <div>
         <button
-          onClick={handleAddText}
-          className="bg-blue-500 text-white px-3 py-1 rounded"
+          onClick={() => setShowTextInput((prev) => !prev)}
+          className="w-8 h-8 flex items-center justify-center  rounded-full text-lg"
         >
-          ➕ افزودن متن
+          A
+        </button>
+
+        <button
+          onClick={handleExport}
+          className="px-3 py-1 rounded"
+        >
+          📤 خروجی گرفتن (تصویر)
         </button>
       </div>
 
-      <input
+      {showTextInput && (
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            value={newText}
+            onChange={(e) => setNewText(e.target.value)}
+            placeholder="متن را وارد کنید"
+            className="border px-2 py-1 rounded"
+          />
+          <button
+            onClick={handleAddText}
+            className=" px-3 py-1 rounded"
+          >
+            ➕
+          </button>
+        </div>
+      )}
+
+      {/* <input
         type="file"
         multiple
         accept="image/*"
         onChange={(e) => handleAddImages(e.target.files)}
+      /> */}
+      <input
+        type="file"
+        multiple
+        accept="image/*"
+        onChange={(e) => {
+          handleAddImages(e.target.files);
+          e.target.value = ""; // بدون این خط، فایل تکراری مجدد انتخاب نمی‌شه
+        }}
       />
 
-      <div className="relative w-full h-[600px] border border-gray-300 mt-4 bg-gray-100">
+      <div
+        ref={canvasRef}
+        className="relative w-full h-[600px] "
+      >
         {/* عکس‌ها */}
         {images.map((img) => (
           <div
             key={img.id}
             className="absolute"
-            style={{ left: img.position.x, top: img.position.y }}
+            style={{
+              left: img.position.x,
+              top: img.position.y,
+              zIndex: zIndexes[img.id] || 1,
+              width: img.size,
+            }}
             onMouseDown={(e) => handleMouseDown(img.id, "image", e)}
-            onClick={() => setSelectedId(img.id)}
+            onClick={() => {
+              setSelectedId(img.id);
+              bringToFront(img.id);
+            }}
           >
             <div
               className={`relative border-2 ${
-                selectedId === img.id ? "border-blue-500" : "border-transparent"
+                selectedId === img.id ? "" : "border-transparent"
               }`}
-              style={{ width: img.size, height: img.size }}
             >
               <div
-                className="absolute top-0 right-0 bg-white text-xs px-2 cursor-pointer border rounded"
+                className="absolute top-0 z-[99999] right-0  text-xs px-2 cursor-pointer  rounded"
                 onClick={(e) => {
                   e.stopPropagation();
+                  setSelectedId(img.id);
                   setShowSettingId((prev) => (prev === img.id ? null : img.id));
                 }}
               >
@@ -211,57 +351,71 @@ const Editor = () => {
                 src={img.preview}
                 alt="img"
                 width={img.size}
-                height={img.size}
-                className="object-contain w-full h-full"
-                style={{ transform: `rotate(${img.rotate}deg)` }}
+                height={0}
+                className="object-contain w-full h-auto"
+                style={{
+                  transform: `rotate(${img.rotate}deg)`,
+                  width: `${img.size}`,
+                }}
                 draggable={false}
               />
-              {showSettingId === img.id && (
-                <div className="absolute bottom-0 left-0 w-full bg-white border-t p-2 text-sm space-y-2">
-                  <div>
-                    <label>📏 اندازه:</label>
-                    <input
-                      type="range"
-                      min={50}
-                      max={300}
-                      value={img.size}
-                      onChange={(e) =>
-                        updateImageSetting(img.id, "size", +e.target.value)
-                      }
-                    />
-                  </div>
-                  <div>
-                    <label>🔄 چرخش:</label>
-                    <input
-                      type="range"
-                      min={0}
-                      max={360}
-                      value={parseInt(img.rotate)}
-                      onChange={(e) =>
-                        updateImageSetting(img.id, "rotate", e.target.value)
-                      }
-                    />
-                  </div>
-                  <button
-                    className="bg-red-500 text-white text-xs px-2 py-1 rounded"
-                    onClick={() => handleDelete(img.id)}
-                  >
-                    🗑️ حذف
-                  </button>
-                </div>
-              )}
             </div>
           </div>
         ))}
+        {selectedImage && showSettingId === selectedImage.id && (
+          <div
+            className="fixed bottom-4 right-4 z-[99999] w-64  border rounded  p-4 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* تنظیمات */}
+            <div>
+              <label>📏 اندازه:</label>
+              <input
+                type="range"
+                min={50}
+                max={300}
+                value={selectedImage.size}
+                onChange={(e) =>
+                  updateImageSetting(selectedImage.id, "size", +e.target.value)
+                }
+              />
+            </div>
+            <div>
+              <label>🔄 چرخش:</label>
+              <input
+                type="range"
+                min={0}
+                max={360}
+                value={parseInt(selectedImage.rotate)}
+                onChange={(e) =>
+                  updateImageSetting(selectedImage.id, "rotate", e.target.value)
+                }
+              />
+            </div>
+            <button
+              className="text-xs px-2 py-1 rounded"
+              onClick={() => handleDelete(selectedImage.id)}
+            >
+              🗑️ حذف
+            </button>
+          </div>
+        )}
 
         {/* متون */}
         {texts.map((txt) => (
           <div
             key={txt.id}
             className="absolute cursor-move"
-            style={{ left: txt.position.x, top: txt.position.y }}
+            style={{
+              left: txt.position.x,
+              top: txt.position.y,
+              zIndex: zIndexes[txt.id] || 1, // اضافه کن
+            }}
             onMouseDown={(e) => handleMouseDown(txt.id, "text", e)}
-            onClick={() => setSelectedId(txt.id)}
+            onClick={() => {
+              setSelectedId(txt.id);
+              bringToFront(txt.id); // اضافه کن
+            }}
           >
             <div className="relative">
               <p
@@ -275,7 +429,7 @@ const Editor = () => {
               </p>
 
               <div
-                className="absolute top-0 right-0 bg-white text-xs px-1 py-0.5 border rounded cursor-pointer"
+                className="absolute top-0  right-0  text-xs px-1 py-0.5 border rounded cursor-pointer"
                 onClick={(e) => {
                   e.stopPropagation();
                   setShowSettingId((prev) => (prev === txt.id ? null : txt.id));
@@ -285,7 +439,7 @@ const Editor = () => {
               </div>
 
               {showSettingId === txt.id && (
-                <div className="absolute bottom-0 left-0 bg-white p-2 text-sm border rounded space-y-2">
+                <div className="absolute left-full top-0 ml-2 w-48  p-2 text-sm border rounded space-y-2 shadow-lg z-50">
                   <div>
                     <label>🔠 سایز فونت:</label>
                     <input
@@ -323,7 +477,7 @@ const Editor = () => {
                     </select>
                   </div>
                   <button
-                    className="bg-red-500 text-white text-xs px-2 py-1 rounded"
+                    className="text-xs px-2 py-1 rounded"
                     onClick={() => handleDelete(txt.id)}
                   >
                     🗑️ حذف
