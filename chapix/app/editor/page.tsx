@@ -22,6 +22,19 @@ type TextItemType = {
   fontFamily: string;
 };
 
+type ExportMainControl = {
+  bg: string;
+};
+
+type Size = {
+  width: number;
+  height: number;
+};
+
+type CustomSize = {
+  width: string;
+  height: string;
+};
 const Editor = () => {
   const [images, setImages] = useState<ImageItemType[]>([]);
   const [texts, setTexts] = useState<TextItemType[]>([]);
@@ -32,10 +45,12 @@ const Editor = () => {
   const [showSettingId, setShowSettingId] = useState<string | null>(null);
   const [showTextInput, setShowTextInput] = useState(false);
 
-  const [controlExportMain, setControlExportMain] = useState({
-    size: "",
-    bg: "",
-  });
+  const [controlExportMain, setControlExportMain] = useState<ExportMainControl>(
+    {
+      bg: "#ffffff", // مقدار اولیه
+    }
+  );
+
   type ZIndexMap = Record<string, number>;
   const [zIndexes, setZIndexes] = useState<ZIndexMap>({});
   const zCounter = useRef(1);
@@ -214,7 +229,7 @@ const Editor = () => {
       prev.map((txt) => (txt.id === id ? { ...txt, [key]: value } : txt))
     );
   };
-  const handleBackgourdColorMain = (e) => {
+  const handleBackgourdColorMain = (e: React.ChangeEvent<HTMLInputElement>) => {
     console.log(e.target.value, "color");
     setControlExportMain({
       ...controlExportMain,
@@ -223,7 +238,10 @@ const Editor = () => {
   };
 
   const [selectedProduct, setSelectedProduct] = useState("کاتالوگ");
-  const [customSize, setCustomSize] = useState({ width: "", height: "" });
+  const [customSize, setCustomSize] = useState<CustomSize>({
+    width: "",
+    height: "",
+  });
 
   // const size = productSizes[selectedProduct];
 
@@ -501,13 +519,14 @@ const Editor = () => {
     </div>
   );
 };
-const productSizes = {
-  کاتالوگ: { width: 2480, height: 3508 },
+const productSizes: Record<string, Size> = {
+  "کاتالوگ": { width: 2480, height: 3508 },
   "کارت ویزیت": { width: 1004, height: 650 },
-  پاکت: { width: 2598, height: 1299 },
-  فاکتور: { width: 1748, height: 2480 },
-  تراکت: { width: 1240, height: 1748 },
-  برچسب: { width: 591, height: 591 },
-  سفارشی: { width: 0, height: 0 }, // مقدار اولیه
+  "پاکت": { width: 2598, height: 1299 },
+  "فاکتور": { width: 1748, height: 2480 },
+  "تراکت": { width: 1240, height: 1748 },
+  "برچسب": { width: 591, height: 591 },
+  "سفارشی": { width: 0, height: 0 },
 };
+
 export default Editor;
